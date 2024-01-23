@@ -4,7 +4,7 @@ from torch.utils.data import DataLoader
 from torch.optim import Adam
 from torch.nn import MSELoss, L1Loss
 from tqdm import tqdm
-from skimage.metrics import structural_similarity as ssim
+# from skimage.metrics import structural_similarity as ssim
 import numpy as np
 import torch
 import math
@@ -21,7 +21,7 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using {device} device")
     
-    ab_path = "ab/ab/ab1.npy"
+    ab_path = "ab/ab1.npy"
     l_path = "l/gray_scale.npy"
 
     ab_df = np.load(ab_path)[0:10000]
@@ -90,18 +90,18 @@ if __name__ == "__main__":
                 gt = gt.cpu()
                 for i in range(out.size(0)):
                     psnr_val = calculate_psnr(out[i], gt[i])
-                    ssim_val = ssim(out[i].numpy(), gt[i].numpy(), multichannel=True)
+                    # ssim_val = ssim(out[i].numpy(), gt[i].numpy(), multichannel=True)
                     
                     total_val_psnr += psnr_val
-                    total_val_ssim += ssim_val
+                    # total_val_ssim += ssim_val
                     num_val_samples += 1
 
         avg_val_loss = val_loss / len(val_loader)
         avg_val_psnr = total_val_psnr / num_val_samples
-        avg_val_ssim = total_val_ssim / num_val_samples
+        # avg_val_ssim = total_val_ssim / num_val_samples
         print("Validation loss: ", avg_val_loss)
         print("Average Validation PSNR: ", avg_val_psnr)
-        print("Average Validation SSIM: ", avg_val_ssim)
+        # print("Average Validation SSIM: ", avg_val_ssim)
 
         model.train()  # Set the model back to training mode
 
@@ -125,18 +125,19 @@ if __name__ == "__main__":
             gt = gt.cpu()
             for i in range(out.size(0)):
                 psnr_val = calculate_psnr(out[i], gt[i])
-                ssim_val = ssim(out[i].numpy(), gt[i].numpy(), multichannel=True)
+                # ssim_val = ssim(out[i].numpy(), gt[i].numpy(), multichannel=True)
                 
                 total_psnr += psnr_val
-                total_ssim += ssim_val
+                # total_ssim += ssim_val
                 num_samples += 1
 
     avg_test_loss = test_loss / len(test_loader)
     avg_psnr = total_psnr / num_samples
-    avg_ssim = total_ssim / num_samples
+    # avg_ssim = total_ssim / num_samples
 
     
     print("Test loss: ", avg_test_loss)
     print("Average PSNR: ", avg_psnr)
-    print("Average SSIM: ", avg_ssim)
+    # print("Average SSIM: ", avg_ssim
+    # )
             
