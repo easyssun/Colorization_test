@@ -1,5 +1,6 @@
 from utils import *
 from baseline import *
+from inference import *
 from torch.utils.data import DataLoader
 from torch.optim import Adam
 from torch.nn import MSELoss, L1Loss
@@ -10,7 +11,7 @@ import torch
 import math
 from pytorch_msssim import ssim
 import wandb
-wandb.login()
+# wandb.login()
 def calculate_psnr(img1, img2):
     mse = torch.mean((img1 - img2) ** 2)
     if mse == 0:
@@ -48,9 +49,12 @@ if __name__ == "__main__":
     
     # 1) dataloader 인스턴스화 (불러오기)
     # Prepare the Datasets
-    train_dataset = ImageColorizationDataset(dataset = (L_df[:6000], ab_df[:6000]))
-    val_dataset = ImageColorizationDataset(dataset = (L_df[6000:8000], ab_df[6000:8000]))
-    test_dataset = ImageColorizationDataset(dataset = (L_df[8000:], ab_df[8000:]))
+    # train_dataset = ImageColorizationDataset(dataset = (L_df[:6000], ab_df[:6000]))
+    # val_dataset = ImageColorizationDataset(dataset = (L_df[6000:8000], ab_df[6000:8000]))
+    # test_dataset = ImageColorizationDataset(dataset = (L_df[8000:], ab_df[8000:]))
+    train_dataset = ImageColorizationDataset(dataset = (L_df[:600], ab_df[:600]))
+    val_dataset = ImageColorizationDataset(dataset = (L_df[600:800], ab_df[600:800]))
+    test_dataset = ImageColorizationDataset(dataset = (L_df[800:1000], ab_df[800:1000]))
 
     # Build DataLoaders
     train_loader = DataLoader(dataset=train_dataset, batch_size=1, shuffle = True, pin_memory = True)
@@ -76,9 +80,21 @@ if __name__ == "__main__":
 
         for d in tqdm(train_loader, desc="Train Loader"):
             noise_img, gt = d
-            # print(noise_img[0].shape)
-            # print(gt[0].shape)
+            noise_img, gt = noise_img.numpy(), gt.numpy()
+
+            # ------ 데이터 확인 -------
+            # img = np.zeros((224,224,3))
+            # # img[:,:,0] = noise_img[0][:,:,0]* 100
+            # img[:,:,1:] = gt[0][:,:,:]
+            # print(gt[0][:,:,:].shape)
+            # img = img.astype('uint8')
+
+            # img = cv2.cvtColor(img, cv2.COLOR_LAB2RGB)
+            # plt.imshow(img)
+            # plt.show()
             # assert 0
+            # ------ 데이터 확인 -------
+            
             noise_img, gt = noise_img.to(device), gt.to(device)
 
             out = model(noise_img)
@@ -141,7 +157,11 @@ if __name__ == "__main__":
         if epochs_since_improvement >= patience:
             print(f"No improvement in validation loss for {patience} epochs. Stopping training.")
             break
+
+        with torch.no_grad():
+            visualize(model, e, train_dataset)
         model.train()  # Set the model back to training mode
+
 
     # Testing phase
     model.eval()  # Set the model to evaluation mode

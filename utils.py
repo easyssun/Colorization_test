@@ -56,16 +56,6 @@ from tqdm import tqdm
 import warnings
 warnings.filterwarnings('ignore')
 
-# device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-# ab_path = "ab/ab/ab1.npy"
-# l_path = "l/gray_scale.npy"
-
-# ab_df = np.load(ab_path)[0:10000]
-# L_df = np.load(l_path)[0:10000]
-# dataset = (L_df,ab_df )
-# gc.collect()
-
 def lab_to_rgb(L, ab):
     """
     Takes an image or a batch of images and converts from LAB space to RGB
@@ -73,33 +63,16 @@ def lab_to_rgb(L, ab):
     L = L  * 100
     ab = (ab - 0.5) * 128 * 2
     Lab = torch.cat([L, ab], dim=2).numpy()
+    print(L.shape)
+    print(ab.shape)
+    print(Lab.shape)
+    assert 0
     rgb_imgs = []
     for img in Lab:
         img_rgb = lab2rgb(img)
         rgb_imgs.append(img_rgb)
     return np.stack(rgb_imgs, axis=0)
 
-# img = np.zeros((224,224,3))
-# img[:,:,0] = L_df[0]
-# plt.imshow(lab_to_rgb(img,ab_df[0]))
-
-# plt.figure(figsize=(30,30))
-# for i in range(1,16,2):
-#     print(i)
-#     plt.subplot(4,4,i)
-#     img = np.zeros((224,224,3))
-#     img[:,:,0] = L_df[i]
-#     plt.title('B&W')
-#     plt.imshow(lab2rgb(img))
-    
-#     plt.subplot(4,4,i+1)
-#     img[:,:,1:] = ab_df[i]
-#     img = img.astype('uint8')
-#     img = cv2.cvtColor(img, cv2.COLOR_LAB2RGB)
-#     plt.title('Colored')
-#     plt.imshow(img)
-# plt.show()
-    
 class ImageColorizationDataset(Dataset):
     ''' Black and White (L) Images and corresponding A&B Colors'''
     def __init__(self, dataset, transform=None):
@@ -116,12 +89,15 @@ class ImageColorizationDataset(Dataset):
     
     def __getitem__(self, idx):
         L = np.array(self.dataset[0][idx]).reshape((224,224,1))
-        # L = np.array(self.dataset[0][idx])
+        
         L = transforms.ToTensor()(L)
         
         ab = np.array(self.dataset[1][idx])
         ab = transforms.ToTensor()(ab)
-
+        
+        L = L.permute(1,2,0)
+        ab = ab.permute(1,2,0)
+        
         return L, ab
     
 def display(img):
