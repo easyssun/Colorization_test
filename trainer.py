@@ -11,7 +11,20 @@ import torch
 import math
 from pytorch_msssim import ssim
 import wandb
-# wandb.login()
+import datetime
+import os
+import torch
+
+# Get the current date and time
+current_datetime = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+
+# Create a directory name with the current date and time
+directory_name = "models/" + current_datetime
+
+# Create the directory if it does not exist
+if not os.path.exists(directory_name):
+    os.makedirs(directory_name)
+
 def calculate_psnr(img1, img2):
     mse = torch.mean((img1 - img2) ** 2)
     if mse == 0:
@@ -57,8 +70,8 @@ if __name__ == "__main__":
     test_dataset = ImageColorizationDataset(dataset = (L_df[800:1000], ab_df[800:1000]))
 
     # Build DataLoaders
-    train_loader = DataLoader(dataset=train_dataset, batch_size=1, shuffle = True, pin_memory = True)
-    val_loader = DataLoader(dataset=val_dataset, batch_size=1, shuffle = False, pin_memory = True)
+    train_loader = DataLoader(dataset=train_dataset, batch_size=8, shuffle = True, pin_memory = True)
+    val_loader = DataLoader(dataset=val_dataset, batch_size=8, shuffle = False, pin_memory = True)
     test_loader = DataLoader(dataset=test_dataset, batch_size=1, shuffle = False, pin_memory = True)
     
     # 2) 모델 인스턴스화
@@ -80,11 +93,14 @@ if __name__ == "__main__":
 
         for d in tqdm(train_loader, desc="Train Loader"):
             noise_img, gt = d
-            noise_img, gt = noise_img.numpy(), gt.numpy()
+            
+            # continue
+            
+            # noise_img, gt = noise_img.numpy(), gt.numpy()
 
-            # ------ 데이터 확인 -------
+            # # ------ 데이터 확인 -------
             # img = np.zeros((224,224,3))
-            # # img[:,:,0] = noise_img[0][:,:,0]* 100
+            # img[:,:,0] = noise_img[0][:,:,0]
             # img[:,:,1:] = gt[0][:,:,:]
             # print(gt[0][:,:,:].shape)
             # img = img.astype('uint8')
@@ -93,7 +109,7 @@ if __name__ == "__main__":
             # plt.imshow(img)
             # plt.show()
             # assert 0
-            # ------ 데이터 확인 -------
+            # # ------ 데이터 확인 -------
             
             noise_img, gt = noise_img.to(device), gt.to(device)
 
@@ -159,7 +175,11 @@ if __name__ == "__main__":
             break
 
         with torch.no_grad():
-            visualize(model, e, train_dataset)
+            visualize(model, e, current_datetime)
+        
+        # Save the model in the directory
+        model_save_path = os.path.join(directory_name, "model_" + str(e) + ".pt")
+        torch.save(model.state_dict(), model_save_path)
         model.train()  # Set the model back to training mode
 
 

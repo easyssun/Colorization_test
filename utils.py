@@ -42,6 +42,7 @@ from torchvision import transforms
 from torch.utils.data import Dataset, DataLoader
 from torch.autograd import Variable
 from torchvision import models
+from torchvision import transforms
 from torch.nn import functional as F
 import torch.utils.data
 from torchvision.models.inception import inception_v3
@@ -75,28 +76,32 @@ def lab_to_rgb(L, ab):
 
 class ImageColorizationDataset(Dataset):
     ''' Black and White (L) Images and corresponding A&B Colors'''
-    def __init__(self, dataset, transform=None):
+    def __init__(self, dataset):
         '''
         :param dataset: Dataset name.
         :param data_dir: Directory with all the images.
         :param transform: Optional transform to be applied on sample
         '''
         self.dataset = dataset
-        self.transform = transform
+        self.L_transform = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.5], std=[0.5])  # Example values, adjust as needed
+        ])
+
+        self.ab_transform = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.5, 0.5], std=[0.5, 0.5])  # Example values for 2 channels
+        ])
     
     def __len__(self):
         return len(self.dataset[0])
     
     def __getitem__(self, idx):
         L = np.array(self.dataset[0][idx]).reshape((224,224,1))
+        ab = np.array(self.dataset[1][idx])
         
         L = transforms.ToTensor()(L)
-        
-        ab = np.array(self.dataset[1][idx])
         ab = transforms.ToTensor()(ab)
-        
-        L = L.permute(1,2,0)
-        ab = ab.permute(1,2,0)
         
         return L, ab
     
