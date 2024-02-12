@@ -48,15 +48,18 @@ class UNet(nn.Module):
         x = self.dconv_down4(x)
         
         x = self.upsample(x)        
-        x = torch.cat([x, self.cbam3(conv3)], dim=1)
-        
+        # x = torch.cat([x, self.cbam3(conv3)], dim=1)
+        x = torch.cat([x, conv3], dim=1)   
+
         x = self.dconv_up3(x)
         x = self.upsample(x)        
-        x = torch.cat([x, self.cbam2(conv2)], dim=1)       
+        # x = torch.cat([x, self.cbam2(conv2)], dim=1)       
+        x = torch.cat([x, conv2], dim=1)   
 
         x = self.dconv_up2(x)
         x = self.upsample(x)        
-        x = torch.cat([x, self.cbam1(conv1)], dim=1)   
+        # x = torch.cat([x, self.cbam1(conv1)], dim=1)   
+        x = torch.cat([x, conv1], dim=1)   
         
         x = self.dconv_up1(x)
         

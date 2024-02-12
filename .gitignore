@@ -5,3 +5,4 @@ inception_resnet_v2_weights_tf_dim_ordering_tf_kernels.h5
 wandb/
 pic/
 *.pt
+results/
