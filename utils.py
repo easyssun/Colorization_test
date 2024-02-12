@@ -102,7 +102,7 @@ class ImageColorizationDataset(Dataset):
         
         L = transforms.ToTensor()(L)
         ab = transforms.ToTensor()(ab)
-        
+                                                                                                      
         return L, ab
     
 def display(img):
