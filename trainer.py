@@ -32,7 +32,7 @@ def calculate_psnr(img1, img2):
     return 20 * math.log10(1.0 / math.sqrt(mse))
 
 
-epoch = 1000
+epoch = 100
 learning_rate = 0.0001
 
 # start a new wandb run to track this script
