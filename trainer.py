@@ -1,3 +1,4 @@
+import wandb
 from utils import *
 from baseline import *
 from inference import *
@@ -10,7 +11,7 @@ import numpy as np
 import torch
 import math
 from pytorch_msssim import ssim
-import wandb
+# import wandb
 import datetime
 import os
 import torch
@@ -25,6 +26,11 @@ directory_name = "models/" + current_datetime
 if not os.path.exists(directory_name):
     os.makedirs(directory_name)
 
+# Function to log data to a file
+def log_to_file(message, file_name="training_log.txt"):
+    with open(os.path.join(directory_name, file_name), "a") as file:
+        file.write(message + "\n")
+
 def calculate_psnr(img1, img2):
     mse = torch.mean((img1 - img2) ** 2)
     if mse == 0:
@@ -32,27 +38,31 @@ def calculate_psnr(img1, img2):
     return 20 * math.log10(1.0 / math.sqrt(mse))
 
 
-epoch = 100
+epoch = 1000
 learning_rate = 0.0001
 
 # start a new wandb run to track this script
-wandb.init(
-    # set the wandb project where this run will be logged
-    project="colorization-project",
+# wandb.init(
+#     # set the wandb project where this run will be logged
+#     project="colorization-project",
     
-    # track hyperparameters and run metadata
-    config={
-    "learning_rate": learning_rate,
-    "architecture": "baseline",
-    "epochs": epoch,
-    }
-)
+#     # track hyperparameters and run metadata
+#     config={
+#     "learning_rate": learning_rate,
+#     "architecture": "baseline",
+#     "epochs": epoch,
+#     }
+# )
 
 if __name__ == "__main__":
+
+    log_file_name = "training_log_" + current_datetime + ".txt"
+    log_to_file("Training started at " + current_datetime, log_file_name)
 
     # Check for GPU availability
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using {device} device")
+    log_to_file(f"Using {device} device", log_file_name)
     
     ab_path = "ab/ab1.npy"
     l_path = "l/gray_scale.npy"
@@ -70,9 +80,9 @@ if __name__ == "__main__":
     test_dataset = ImageColorizationDataset(dataset = (L_df[800:1000], ab_df[800:1000]))
 
     # Build DataLoaders
-    train_loader = DataLoader(dataset=train_dataset, batch_size=8, shuffle = True, pin_memory = True)
-    val_loader = DataLoader(dataset=val_dataset, batch_size=8, shuffle = False, pin_memory = True)
-    test_loader = DataLoader(dataset=test_dataset, batch_size=1, shuffle = False, pin_memory = True)
+    train_loader = DataLoader(dataset=train_dataset, batch_size=8, shuffle = True, pin_memory = True, num_workers=0)
+    val_loader = DataLoader(dataset=val_dataset, batch_size=8, shuffle = False, pin_memory = True, num_workers=0)
+    test_loader = DataLoader(dataset=test_dataset, batch_size=1, shuffle = False, pin_memory = True, num_workers=0)
     
     # 2) 모델 인스턴스화
     model = UNet().to(device)
@@ -82,7 +92,7 @@ if __name__ == "__main__":
     
     loss_fn = L1Loss()
 
-    patience = 100  # Number of epochs to wait for improvement before stopping
+    patience = 500  # Number of epochs to wait for improvement before stopping
     best_val_loss = float('inf')
     epochs_since_improvement = 0
 
@@ -124,7 +134,8 @@ if __name__ == "__main__":
 
         avg_train_loss = train_loss / len(train_loader)
         print("Train loss: ", avg_train_loss)
-        wandb.log({"Train Loss": avg_train_loss}, step=e)
+        # wandb.log({"Train Loss": avg_train_loss}, step=e)
+        log_to_file(f"Epoch {e}: Train Loss: {avg_train_loss}", log_file_name)
 
 
         # Validation phase
@@ -161,8 +172,8 @@ if __name__ == "__main__":
         print("Average Validation PSNR: ", avg_val_psnr)
         print("Average Validation SSIM: ", avg_val_ssim)
 
-        wandb.log({"Validation Loss": avg_val_loss, "Validation PSNR": avg_val_psnr, "Validation SSIM": avg_val_ssim}, step=e)
-
+        # wandb.log({"Validation Loss": avg_val_loss, "Validation PSNR": avg_val_psnr, "Validation SSIM": avg_val_ssim}, step=e)
+        log_to_file(f"Epoch {e}: Validation Loss: {avg_val_loss}, Validation PSNR: {avg_val_psnr}, Validation SSIM: {avg_val_ssim}", log_file_name)
         # Check for improvement
         if avg_val_loss < best_val_loss:
             best_val_loss = avg_val_loss
@@ -174,12 +185,13 @@ if __name__ == "__main__":
             print(f"No improvement in validation loss for {patience} epochs. Stopping training.")
             break
 
-        with torch.no_grad():
-            visualize(model, e, current_datetime)
+        # with torch.no_grad():
+            # visualize(model, e, current_datetime)
         
         # Save the model in the directory
         model_save_path = os.path.join(directory_name, "model_" + str(e) + ".pt")
-        torch.save(model.state_dict(), model_save_path)
+        if (e > 250 and e % 10 == 0) or e % 50 == 0:
+            torch.save(model.state_dict(), model_save_path)
         model.train()  # Set the model back to training mode
 
 
@@ -221,5 +233,5 @@ if __name__ == "__main__":
     print("Average PSNR: ", avg_psnr)
     print("Average SSIM: ", avg_ssim)
             
-    wandb.log({"Test Loss": avg_test_loss, "Test PSNR": avg_psnr, "Test SSIM": avg_ssim})
-    wandb.finish()
+    # wandb.log({"Test Loss": avg_test_loss, "Test PSNR": avg_psnr, "Test SSIM": avg_ssim})
+    log_to_file(f"Test Loss: {avg_test_loss}, Test PSNR: {avg_psnr}, Test SSIM: {avg_ssim}", log_file_name)
