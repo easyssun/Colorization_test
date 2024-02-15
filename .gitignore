@@ -6,3 +6,4 @@ wandb/
 pic/
 *.pt
 results/
+models/
