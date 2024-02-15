@@ -60,7 +60,7 @@ if __name__ == "__main__":
     log_to_file("Training started at " + current_datetime, log_file_name)
 
     # Check for GPU availability
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     print(f"Using {device} device")
     log_to_file(f"Using {device} device", log_file_name)
     
@@ -72,19 +72,17 @@ if __name__ == "__main__":
     
     # 1) dataloader 인스턴스화 (불러오기)
     # Prepare the Datasets
-    # train_dataset = ImageColorizationDataset(dataset = (L_df[:6000], ab_df[:6000]))
-    # val_dataset = ImageColorizationDataset(dataset = (L_df[6000:8000], ab_df[6000:8000]))
-    # test_dataset = ImageColorizationDataset(dataset = (L_df[8000:], ab_df[8000:]))
-    train_dataset = ImageColorizationDataset(dataset = (L_df[:600], ab_df[:600]))
-    val_dataset = ImageColorizationDataset(dataset = (L_df[600:800], ab_df[600:800]))
-    test_dataset = ImageColorizationDataset(dataset = (L_df[800:1000], ab_df[800:1000]))
+    train_dataset = ImageColorizationDataset(dataset = (L_df[:6000], ab_df[:6000]))
+    val_dataset = ImageColorizationDataset(dataset = (L_df[6000:8000], ab_df[6000:8000]))
+    test_dataset = ImageColorizationDataset(dataset = (L_df[8000:10000], ab_df[8000:10000]))
 
     # Build DataLoaders
-    train_loader = DataLoader(dataset=train_dataset, batch_size=8, shuffle = True, pin_memory = True, num_workers=0)
-    val_loader = DataLoader(dataset=val_dataset, batch_size=8, shuffle = False, pin_memory = True, num_workers=0)
+    train_loader = DataLoader(dataset=train_dataset, batch_size=16, shuffle = True, pin_memory = True, num_workers=0)
+    val_loader = DataLoader(dataset=val_dataset, batch_size=16, shuffle = False, pin_memory = True, num_workers=0)
     test_loader = DataLoader(dataset=test_dataset, batch_size=1, shuffle = False, pin_memory = True, num_workers=0)
     
     # 2) 모델 인스턴스화
+    # model = UNet().to(device)
     model = UNet().to(device)
 
     # 3) Optimizer, loss function 인스턴스화
@@ -92,7 +90,7 @@ if __name__ == "__main__":
     
     loss_fn = L1Loss()
 
-    patience = 500  # Number of epochs to wait for improvement before stopping
+    patience = 100  # Number of epochs to wait for improvement before stopping
     best_val_loss = float('inf')
     epochs_since_improvement = 0
 
@@ -103,23 +101,6 @@ if __name__ == "__main__":
 
         for d in tqdm(train_loader, desc="Train Loader"):
             noise_img, gt = d
-            
-            # continue
-            
-            # noise_img, gt = noise_img.numpy(), gt.numpy()
-
-            # # ------ 데이터 확인 -------
-            # img = np.zeros((224,224,3))
-            # img[:,:,0] = noise_img[0][:,:,0]
-            # img[:,:,1:] = gt[0][:,:,:]
-            # print(gt[0][:,:,:].shape)
-            # img = img.astype('uint8')
-
-            # img = cv2.cvtColor(img, cv2.COLOR_LAB2RGB)
-            # plt.imshow(img)
-            # plt.show()
-            # assert 0
-            # # ------ 데이터 확인 -------
             
             noise_img, gt = noise_img.to(device), gt.to(device)
 
