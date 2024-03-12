@@ -77,9 +77,9 @@ if __name__ == "__main__":
     # train_dataset = ImageColorizationDataset(dataset = (L_df[:6000], ab_df[:6000]))
     # val_dataset = ImageColorizationDataset(dataset = (L_df[6000:8000], ab_df[6000:8000]))
     # test_dataset = ImageColorizationDataset(dataset = (L_df[8000:], ab_df[8000:]))
-    train_dataset = ImageColorizationDataset(dataset = (L_df[:600], ab_df[:600]))
-    val_dataset = ImageColorizationDataset(dataset = (L_df[600:800], ab_df[600:800]))
-    test_dataset = ImageColorizationDataset(dataset = (L_df[800:1000], ab_df[800:1000]))
+    train_dataset = ImageColorizationDataset(dataset = (L_df[:6000], ab_df[:6000]))
+    val_dataset = ImageColorizationDataset(dataset = (L_df[6000:8000], ab_df[6000:8000]))
+    test_dataset = ImageColorizationDataset(dataset = (L_df[8000:10000], ab_df[8000:10000]))
 
     # Build DataLoaders
     train_loader = DataLoader(dataset=train_dataset, batch_size=8, shuffle = True, pin_memory = True, num_workers=0)

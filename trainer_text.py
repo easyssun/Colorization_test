@@ -15,6 +15,7 @@ from pytorch_msssim import ssim
 import datetime
 import os
 import torch
+from transformers import pipeline
 
 # Get the current date and time
 current_datetime = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -82,14 +83,16 @@ if __name__ == "__main__":
     test_loader = DataLoader(dataset=test_dataset, batch_size=1, shuffle = False, pin_memory = True, num_workers=0)
     
     # 2) 모델 인스턴스화
-    # model = UNet().to(device)
-    model = UNet_with_ResNet().to(device)
+    model = UNetTextGuided().to(device)
 
     # 3) Optimizer, loss function 인스턴스화
     optimizer = Adam(model.parameters(), lr=learning_rate)
     
     loss_fn = L1Loss()
+    # image_to_text_model = pipeline("image-to-text", model="nlpconnect/vit-gpt2-image-captioning")
+    from transformers import BlipProcessor
 
+    image_to_text_model = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-base")
     patience = 200  # Number of epochs to wait for improvement before stopping
     best_val_loss = float('inf')
     epochs_since_improvement = 0
@@ -104,7 +107,11 @@ if __name__ == "__main__":
             
             noise_img, gt = noise_img.to(device), gt.to(device)
 
-            out = model(noise_img)
+            # create captions
+            captions = image_to_text_model(noise_img, return_tensors="pt").to(device)
+            print(captions)
+            assert 0
+            out = model(noise_img, captions)
             
             loss = loss_fn(out, gt)
             

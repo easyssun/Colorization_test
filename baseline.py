@@ -3,6 +3,7 @@ import torch.nn as nn
 from attention import CBAM
 import numpy as np
 import torch.nn.functional as F
+import torchvision.models as models
 
 def double_conv(in_channels, out_channels):
     return nn.Sequential(
@@ -244,6 +245,183 @@ class UNet_pos_enc_intermediate(UNet):
         x = torch.cat([x, conv1], dim=1)
         
         x = self.dconv_up1(x)
+        out = self.conv_last(x)
+        
+        return out
+
+class ResNetFeatureExtractor(nn.Module):
+    def __init__(self, pretrained=True):
+        super().__init__()
+        # 미리 학습된 ResNet34 모델 불러오기
+        self.resnet = models.resnet34(pretrained=pretrained)
+        # ResNet의 마지막 fully connected 레이어를 제거하여 특징 추출기로 사용
+        self.features = nn.Sequential(*list(self.resnet.children())[:-2])
+
+    def forward(self, x):
+        # ResNet을 통해 특징 추출
+        x = self.features(x)
+        return x
+
+class UNet_with_ResNet(nn.Module):
+
+    def __init__(self, output_channels=2):
+        super().__init__()
+        
+        self.resnet_feature_extractor = ResNetFeatureExtractor()
+        
+        self.dconv_down1 = double_conv(1, 64)
+        self.dconv_down2 = double_conv(64, 128)
+        self.dconv_down3 = double_conv(128, 256)
+        self.dconv_down4 = double_conv(256, 512)        
+        
+        self.cbam1 = CBAM(64, 16)
+        self.cbam2 = CBAM(128, 16)
+        self.cbam3 = CBAM(256, 16)
+
+        self.maxpool = nn.MaxPool2d(2)
+        self.upsample = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)        
+        
+        # Upsample the feature map
+        self.upsample8 = nn.Upsample(scale_factor=8, mode='bilinear', align_corners=True)
+        
+        self.dconv_up3 = double_conv(256 + 512 + 512, 256)
+        self.dconv_up2 = double_conv(128 + 512 + 256, 128)
+        self.dconv_up1 = double_conv(64 + 512 + 128, 64)
+        
+        self.conv_last = nn.Conv2d(64, output_channels, 1)
+        
+        
+    def forward(self, x):
+
+        # 단일 채널 입력을 3채널로 확장
+        x_expanded = x.repeat(1, 3, 1, 1)  # (B, C, H, W) -> (B, 3, H, W)
+        
+        # ResNet로 특징 추출
+        resnet_feature3 = self.resnet_feature_extractor(x_expanded)
+        resnet_feature3 = self.upsample8(resnet_feature3)
+        resnet_feature2 = self.upsample(resnet_feature3)
+        resnet_feature1 = self.upsample(resnet_feature2)
+
+        # Encoding
+        conv1 = self.dconv_down1(x)
+        x = self.maxpool(conv1)
+
+        conv2 = self.dconv_down2(x)
+        x = self.maxpool(conv2)
+        
+        conv3 = self.dconv_down3(x)
+        x = self.maxpool(conv3)   
+        
+        x = self.dconv_down4(x)
+        
+        x = self.upsample(x)        
+
+        # Decoding
+        # print("x shape:", x.shape)
+        # print("resnet_feature3 shape:", resnet_feature3.shape)
+        # print("conv3 shape:", conv3.shape)
+        x = torch.cat([x, resnet_feature3, conv3], dim=1)
+        
+        x = self.dconv_up3(x)
+        x = self.upsample(x)        
+        # print("x shape:", x.shape)
+        # print("resnet_feature2 shape:", resnet_feature2.shape)
+        # print("conv2 shape:", conv2.shape)
+        x = torch.cat([x, resnet_feature2, conv2], dim=1)
+
+        x = self.dconv_up2(x)
+        x = self.upsample(x)        
+        
+        x = torch.cat([x, resnet_feature1, conv1], dim=1)
+        
+        x = self.dconv_up1(x)
+        
+        out = self.conv_last(x)
+        
+        return out
+
+
+# class UNet_text_guided(nn.Module):
+
+#     def __init__(self, output_channels=2):
+#         super().__init__()
+        
+#         self.image_to_text_model = pipeline("image-to-text", model="nlpconnect/vit-gpt2-image-captioning")
+        
+        
+#     def forward(self, x):
+
+#         caption = self.image_to_text_model(x)
+
+from transformers import pipeline
+from transformers import CLIPModel, CLIPTokenizer
+
+class UNetTextGuided(nn.Module):
+    def __init__(self, output_channels=2):
+        super(UNetTextGuided, self).__init__()
+        # 예시로 사용된 모델과 토크나이저는 실제 환경에 맞게 조정되어야 합니다.
+        self.clip_model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32")
+        self.clip_tokenizer = CLIPTokenizer.from_pretrained("openai/clip-vit-base-patch32")
+        
+        # UNet 구조를 정의합니다. 이 부분은 UNet의 구체적인 구현에 따라 달라집니다.
+        # 예를 들어, output_channels를 사용하여 마지막 층의 출력 채널을 조정할 수 있습니다.
+        
+        self.dconv_down1 = double_conv(1, 64)
+        self.dconv_down2 = double_conv(64, 128)
+        self.dconv_down3 = double_conv(128, 256)
+        self.dconv_down4 = double_conv(256, 512)        
+        
+        self.cbam1 = CBAM(64, 16)
+        self.cbam2 = CBAM(128, 16)
+        self.cbam3 = CBAM(256, 16)
+
+        self.maxpool = nn.MaxPool2d(2)
+        self.upsample = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)        
+        
+        self.dconv_up3 = double_conv(256 + 512, 256)
+        self.dconv_up2 = double_conv(128 + 256, 128)
+        self.dconv_up1 = double_conv(128 + 64, 64)
+        
+        self.conv_last = nn.Conv2d(64, output_channels, 1)
+        
+    def forward(self, images, captions):
+        # 이미지를 CLIP 이미지 인코더에 통과시켜 임베딩을 얻습니다.
+        image_features = self.clip_model.get_image_features(images)
+        
+        # 캡션을 토큰화하고 CLIP 텍스트 인코더에 통과시켜 임베딩을 얻습니다.
+        text_inputs = self.clip_tokenizer(captions, return_tensors="pt", padding=True, truncation=True)
+        text_features = self.clip_model.get_text_features(**text_inputs)
+        
+        # 이미지 임베딩과 텍스트 임베딩을 결합합니다. 이는 예시로, 실제 구현에서는 조정이 필요할 수 있습니다.
+        combined_features = torch.cat([image_features, text_features], dim=1)
+        
+        # 결합된 임베딩을 UNet에 주입합니다. 이는 UNet의 중간 단계에 추가적인 입력으로 주입하는 방식을 가정합니다.
+        # 실제로는 UNet 구조 내에서 적절한 위치를 찾아 결합된 임베딩을 사용해야 할 것입니다.
+        conv1 = self.dconv_down1(x)
+        x = self.maxpool(conv1)
+
+        conv2 = self.dconv_down2(x)
+        x = self.maxpool(conv2)
+        
+        conv3 = self.dconv_down3(x)
+        x = self.maxpool(conv3)   
+        
+        x = self.dconv_down4(x)
+        
+        x = self.upsample(x)        
+        
+        x = torch.cat([x, conv3], dim=1)
+
+        x = self.dconv_up3(x)
+        x = self.upsample(x)        
+        x = torch.cat([x, conv2], dim=1)
+
+        x = self.dconv_up2(x)
+        x = self.upsample(x)        
+        x = torch.cat([x, conv1], dim=1)
+        
+        x = self.dconv_up1(x)
+        
         out = self.conv_last(x)
         
         return out
